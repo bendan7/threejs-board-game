@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Interaction } from "three.interaction";
 import { ElementRef, Injectable, NgZone, OnDestroy } from "@angular/core";
 
 @Injectable({ providedIn: "root" })
@@ -42,6 +43,7 @@ export class EngineService implements OnDestroy {
       0.1,
       1000
     );
+    var interaction = new Interaction(this.renderer, this.scene, this.camera);
 
     this.camera.position.z = 5;
     this.scene.add(this.camera);
@@ -60,6 +62,7 @@ export class EngineService implements OnDestroy {
       });
 
       const cube = new THREE.Mesh(geometry, material);
+      cube.name = i.toString();
 
       cube.position.x = i % 3;
       if (i > 2 && i <= 5) {
@@ -70,6 +73,14 @@ export class EngineService implements OnDestroy {
       }
 
       cubes[i] = cube;
+
+      cubes[i].on("click", (ev) => {
+        var cubeIndex = parseInt(ev.data.target.name);
+        cubes[cubeIndex].material = new THREE.MeshBasicMaterial({
+          color: this.getRandomColor(),
+        });
+      });
+
       this.gameBoard.add(cube);
     }
 
