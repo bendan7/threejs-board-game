@@ -1,0 +1,11 @@
+{
+  "targets": {
+    "threejs-board-game": {
+      "hosting": {
+        "ng-three-template": [
+          "threejs-board-game"
+        ]
+      }
+    }
+  }
+}

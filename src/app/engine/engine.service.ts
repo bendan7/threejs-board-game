@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { Interaction } from "three.interaction";
 import { ElementRef, Injectable, NgZone, OnDestroy } from "@angular/core";
+import { AngularFirestore } from "@angular/fire/firestore";
+import { take } from "rxjs/operators";
 
 @Injectable({ providedIn: "root" })
 export class EngineService implements OnDestroy {
@@ -14,8 +16,13 @@ export class EngineService implements OnDestroy {
 
   private gameBoard: THREE.Group = null;
   private cubes: Array<THREE.Mesh> = new Array(9);
+  private currentColors: Array<{ id: string; color: string }> = null;
 
-  public constructor(private ngZone: NgZone) {}
+  private stroe: AngularFirestore = null;
+
+  public constructor(private ngZone: NgZone, private store: AngularFirestore) {
+    this.store = store;
+  }
 
   public ngOnDestroy(): void {
     if (this.frameId != null) {
@@ -23,7 +30,36 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  public createScene(canvas: ElementRef<HTMLCanvasElement>): void {
+  public Init(canvas: ElementRef<HTMLCanvasElement>) {
+    // Get the first state
+    this.store
+      .collection("colors")
+      .snapshotChanges()
+      .pipe(take(1))
+      .subscribe((res) => {
+        if (res && res.length > 0) {
+          this.currentColors = res.map((item, i) => {
+            return {
+              color: res[i].payload.doc.data().color,
+              id: res[i].payload.doc.id,
+            };
+          });
+          this.createScene(canvas, this.currentColors);
+          this.animate();
+        }
+      });
+
+    this.store
+      .collection("colors")
+      .valueChanges()
+      .subscribe((res) => {
+        //console.log(res);
+        const newColors = res.map((item) => item.color);
+        this.updateBoard(newColors);
+      });
+  }
+
+  public createScene(canvas: ElementRef<HTMLCanvasElement>, colors): void {
     // The first step is to get the reference of the canvas element from our HTML document
     this.canvas = canvas.nativeElement;
 
@@ -43,22 +79,23 @@ export class EngineService implements OnDestroy {
       0.1,
       1000
     );
-    var interaction = new Interaction(this.renderer, this.scene, this.camera);
-
     this.camera.position.z = 5;
+
+    // Add events listener to "click" on the cubes
+    new Interaction(this.renderer, this.scene, this.camera);
+
     this.scene.add(this.camera);
 
     // soft white light
     this.light = new THREE.AmbientLight(0x404040);
 
     this.gameBoard = new THREE.Group();
-    var cubes = new Array(9);
 
     const geometry = new THREE.BoxGeometry(1, 1, 1);
 
     for (var i = 0; i < 9; i++) {
       const material = new THREE.MeshBasicMaterial({
-        color: this.getRandomColor(),
+        color: colors[i].color,
       });
 
       const cube = new THREE.Mesh(geometry, material);
@@ -72,15 +109,17 @@ export class EngineService implements OnDestroy {
         cube.position.y = 2;
       }
 
-      cubes[i] = cube;
+      this.cubes[i] = cube;
 
-      cubes[i].on("click", (ev) => {
+      this.cubes[i].on("click", (ev) => {
         var cubeIndex = parseInt(ev.data.target.name);
-        cubes[cubeIndex].material = new THREE.MeshBasicMaterial({
-          color: this.getRandomColor(),
-        });
+        this.store
+          .collection("colors")
+          .doc(this.currentColors[cubeIndex].id)
+          .update({ color: this.getRandomColor() });
       });
 
+      // Add the cube to the boardGame element
       this.gameBoard.add(cube);
     }
 
@@ -123,6 +162,16 @@ export class EngineService implements OnDestroy {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(width, height);
+  }
+
+  public updateBoard(newColors: Array<string>) {
+    for (var i = 0; i < newColors.length; i++) {
+      if (this.currentColors[i].color !== newColors[i]) {
+        this.cubes[i].material = new THREE.MeshBasicMaterial({
+          color: newColors[i],
+        });
+      }
+    }
   }
 
   public getRandomColor(): string {
