@@ -11,11 +11,10 @@ export class EngineService implements OnDestroy {
   private camera: THREE.PerspectiveCamera;
   private scene: THREE.Scene;
   private light: THREE.AmbientLight;
-  private cube: THREE.Mesh;
   private frameId: number = null;
 
   private gameBoard: THREE.Group = null;
-  private cubes: Array<THREE.Mesh> = new Array(9);
+  private cubes: Array<any> = new Array(9);
   private currentColors: Array<{ id: string; color: string }> = null;
 
   private stroe: AngularFirestore = null;
@@ -36,7 +35,7 @@ export class EngineService implements OnDestroy {
       .collection("colors")
       .snapshotChanges()
       .pipe(take(1))
-      .subscribe((res) => {
+      .subscribe((res: any) => {
         if (res && res.length > 0) {
           this.currentColors = res.map((item, i) => {
             return {
@@ -52,7 +51,7 @@ export class EngineService implements OnDestroy {
     this.store
       .collection("colors")
       .valueChanges()
-      .subscribe((res) => {
+      .subscribe((res: any) => {
         //console.log(res);
         const newColors = res.map((item) => item.color);
         this.updateBoard(newColors);
